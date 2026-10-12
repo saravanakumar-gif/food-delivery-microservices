@@ -1,0 +1,22 @@
+
+# Maven build output
+target/
+
+# IDE files
+.idea/
+.settings/
+.project
+.classpath
+bin/
+*.class
+.DS_Store
+
+# Real application configuration - sensitive values
+**/application.yml
+**/application.yaml
+**/application.properties
+
+# Environment variables
+.env
+.env.*
+!.env.example
