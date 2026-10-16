@@ -1,18 +1,15 @@
 # Food Delivery Microservices - Docker Compose
-# Run from the parent folder:  docker compose up --build
-#
-# Parent folder must contain these 7 service folders (each with its own Dockerfile):
-#   eureka-server  user-service  restaurant-service  order-service
-#   payment-service  notification-service  api-gateway
+# Run from the project root: docker compose up -d --build
 
-# Reusable env blocks. Spring Boot reads these env vars and overrides application.yml,
-# so application.yml stays untouched and still works when you run from Eclipse.
 x-eureka-env: &eureka-env
   EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8571/eureka/
 
 x-db-env: &db-env
   SPRING_DATASOURCE_USERNAME: postgres
-  SPRING_DATASOURCE_PASSWORD: "1234"
+  SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
+
+x-jwt-env: &jwt-env
+  JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
 
 x-jvm-env: &jvm-env
   JAVA_TOOL_OPTIONS: "-Xmx384m"
@@ -23,9 +20,9 @@ services:
     container_name: postgres
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: "1234"
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
     ports:
-      - "5433:5432"   # 5433 on host so it does not clash with your local Postgres
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./postgres-init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -34,6 +31,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    restart: on-failure
 
   kafka:
     image: apache/kafka:4.0.0
@@ -50,6 +48,7 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    restart: on-failure
 
   eureka-server:
     build: ./eureka-server
@@ -68,7 +67,7 @@ services:
     ports:
       - "8087:8087"
     environment:
-      <<: [*eureka-env, *db-env, *jvm-env]
+      <<: [*eureka-env, *db-env, *jwt-env, *jvm-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/user_service_db
     depends_on:
       postgres:
@@ -83,7 +82,7 @@ services:
     ports:
       - "8082:8082"
     environment:
-      <<: [*eureka-env, *db-env, *jvm-env]
+      <<: [*eureka-env, *db-env, *jwt-env, *jvm-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/restaurant_service_db
     depends_on:
       postgres:
@@ -98,7 +97,7 @@ services:
     ports:
       - "8085:8085"
     environment:
-      <<: [*eureka-env, *db-env, *jvm-env]
+      <<: [*eureka-env, *db-env, *jwt-env, *jvm-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/order_service_db
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
@@ -116,7 +115,7 @@ services:
     ports:
       - "8084:8084"
     environment:
-      <<: [*eureka-env, *db-env, *jvm-env]
+      <<: [*eureka-env, *db-env, *jwt-env, *jvm-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/payment_service_db
     depends_on:
       postgres:
